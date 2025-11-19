@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker exec livemart-mongodb-dev mongosh -u admin -p password123 --authenticationDatabase admin livemart_dev --quiet --eval \"db.users.deleteMany({})\")",
+      "Bash(docker exec livemart-mongodb-dev mongosh -u admin -p password123 --authenticationDatabase admin livemart_dev --quiet --eval \"db.users.dropIndex(''phone_1'')\")",
+      "Bash(curl -s http://localhost:5000/api/auth)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGY3NjY5N2U5ODJiMmQ1NjA3MDM1OTkiLCJlbWFpbCI6ImFtYXppbmdha3kxMjNAZ21haWwuY29tIiwidXNlclR5cGUiOiJDVVNUT01FUiIsImlhdCI6MTc2MTA0NDExOSwiZXhwIjoxNzYxMDQ1MDE5fQ.qKDyFC52TZcR5iI8kRYOlHKemSM-1gMBlHTrm6qx_UE\")",
+      "Bash(__NEW_LINE__ echo \"=== RBAC Test 1: Get Current User ===\")",
+      "Bash(curl -s -X GET http://localhost:5000/api/auth/me -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(curl -X POST http://localhost:5000/api/auth/register -H \"Content-Type: application/json\" -d '{\n  \"\"email\"\": \"\"retailer@test.com\"\",\n  \"\"password\"\": \"\"Retailer123!\"\",\n  \"\"confirmPassword\"\": \"\"Retailer123!\"\",\n  \"\"userType\"\": \"\"RETAILER\"\",\n  \"\"profile\"\": {\n    \"\"name\"\": \"\"Test Retailer\"\",\n    \"\"phone\"\": \"\"9876543210\"\"\n  },\n  \"\"businessName\"\": \"\"Test Retail Store\"\",\n  \"\"gstin\"\": \"\"22AAAAA0000A1Z5\"\"\n}')",
+      "Bash(curl -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d '{\n  \"\"email\"\": \"\"retailer@test.com\"\",\n  \"\"password\"\": \"\"Retailer123!\"\"\n}')",
+      "Bash(RETAILER_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGY3MzEwM2UwNTQyNjFjMjk3MDc5ZDQiLCJlbWFpbCI6InJldGFpbGVyQHRlc3QuY29tIiwidXNlclR5cGUiOiJSRVRBSUxFUiIsImlhdCI6MTc2MTA0NjM4MSwiZXhwIjoxNzYxMDQ3MjgxfQ.Hl-uBayaA4G8VqlJhNpuC9f3xOkTQ0YCCuSJ5dRrtkc\")",
+      "Bash(curl -X POST http://localhost:5000/api/products -H \"Authorization: Bearer $RETAILER_TOKEN\" -H \"Content-Type: application/json\" -d '{\n  \"\"name\"\": \"\"Fresh Organic Apples\"\",\n  \"\"description\"\": \"\"Premium quality organic apples from local farms\"\",\n  \"\"category\"\": {\n    \"\"name\"\": \"\"Fruits\"\",\n    \"\"subcategory\"\": \"\"Fresh Fruits\"\"\n  },\n  \"\"basePrice\"\": 120,\n  \"\"unit\"\": \"\"kg\"\",\n  \"\"tags\"\": [\"\"organic\"\", \"\"fresh\"\", \"\"fruits\"\"],\n  \"\"images\"\": [\"\"https://example.com/apple.jpg\"\"]\n}')",
+      "Bash(curl -X GET \"http://localhost:5000/api/products?page=1&limit=10\")",
+      "Bash(curl -X GET \"http://localhost:5000/api/products/68f77019576bdb7fb4a8e625\")",
+      "Bash(docker-compose -f docker/docker-compose.dev.yml logs client --tail 30)",
+      "Bash(curl:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker ps:*)",
+      "Bash(test:*)",
+      "Bash(docker logs:*)",
+      "Bash(WHOLESALER_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGZjYjhmM2E4N2ZlMjlmYTE4MmQzMzciLCJlbWFpbCI6Indob2xlc2FsZXIyQHRlc3QuY29tIiwidXNlclR5cGUiOiJXSE9MRVNBTEVSIiwiaWF0IjoxNzYyNzg1NjQ2LCJleHAiOjE3NjI3ODY1NDZ9.3ZvLfN568scYZ--zzlA_tqUFxOZhUPlSjWjCAz5ftCA\")",
+      "Bash(RETAILER_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTAzNjgwYWRmODdhYmMxOTNjZTVmNGIiLCJlbWFpbCI6ImRhaXJ5ZGVsaWdodHNAaHlkZXJhYmFkLmNvbSIsInVzZXJUeXBlIjoiUkVUQUlMRVIiLCJpYXQiOjE3NjI3ODc4MTksImV4cCI6MTc2Mjc4ODcxOX0.JGr6_2cWanAqdNId6AQDfkHeCTzQndyxQA-EFnfnPBM\":*)",
+      "Bash(RETAILER_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTAzNjgwYWRmODdhYmMxOTNjZTVmNGIiLCJlbWFpbCI6ImRhaXJ5ZGVsaWdodHNAaHlkZXJhYmFkLmNvbSIsInVzZXJUeXBlIjoiUkVUQUlMRVIiLCJpYXQiOjE3NjI4Nzk2NDgsImV4cCI6MTc2Mjg4MDU0OH0.mk1uOwER5FvlgUpFEGvZI3ICq70nddLISLQw8i6Cvbw\":*)",
+      "Bash(python:*)",
+      "Bash(docker inspect:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
