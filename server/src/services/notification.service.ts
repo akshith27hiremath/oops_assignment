@@ -369,6 +369,34 @@ class NotificationService {
     });
   }
 
+  async notifyShippingDateSet(
+    userId: string | mongoose.Types.ObjectId,
+    orderId: string,
+    subOrderId: string,
+    retailerName: string,
+    shippingDate: Date,
+    items?: Array<{ name: string; quantity: number }>
+  ): Promise<INotification> {
+    const itemsText = items ? this.formatItemNames(items) : 'your items';
+    const dateStr = new Date(shippingDate).toLocaleDateString('en-IN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    return this.createNotification({
+      userId,
+      type: NotificationType.ORDER,
+      priority: NotificationPriority.HIGH,
+      title: '📅 Shipping Date Scheduled',
+      message: `${retailerName} will ship ${itemsText} on ${dateStr}. Add to your calendar!`,
+      icon: '📦',
+      link: `/customer/orders`,
+      metadata: { orderId, subOrderId, shippingDate: shippingDate.toISOString(), retailerName },
+    });
+  }
+
   /**
    * Payment-related notifications
    */

@@ -4,6 +4,7 @@ import Product from '../models/Product.model';
 import orderService from '../services/order.service';
 import invoiceService from '../services/invoice.service';
 import notificationService from '../services/notification.service';
+import calendarService from '../services/calendar.service';
 import { logger } from '../utils/logger';
 
 /**
@@ -30,12 +31,28 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     // Validate request
     if (!items || !Array.isArray(items) || items.length === 0) {
-      res.status(400).json({ success: false, message: 'Order items are required' });
+      res.status(400).json({ success: false, message: 'Order must contain at least one item' });
       return;
     }
 
+    // Validate item quantities
+    for (const item of items) {
+      if (!item.productId) {
+        res.status(400).json({ success: false, message: 'Each item must have a productId' });
+        return;
+      }
+      if (!item.quantity || item.quantity <= 0) {
+        res.status(400).json({ success: false, message: 'Item quantity must be greater than 0' });
+        return;
+      }
+      if (!Number.isInteger(item.quantity)) {
+        res.status(400).json({ success: false, message: 'Item quantity must be a whole number' });
+        return;
+      }
+    }
+
     if (!deliveryAddress || !deliveryAddress.street || !deliveryAddress.city) {
-      res.status(400).json({ success: false, message: 'Delivery address is required' });
+      res.status(400).json({ success: false, message: 'Complete delivery address is required' });
       return;
     }
 
@@ -344,7 +361,7 @@ export const updateSubOrderStatus = async (req: Request, res: Response): Promise
     }
 
     const { id, subOrderId } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, expectedShippingDate } = req.body;
 
     // Use order service to update sub-order status
     const result = await orderService.updateSubOrderStatus(
@@ -352,7 +369,8 @@ export const updateSubOrderStatus = async (req: Request, res: Response): Promise
       subOrderId,
       status,
       req.user._id.toString(),
-      notes
+      notes,
+      expectedShippingDate ? new Date(expectedShippingDate) : undefined
     );
 
     // Send notification to customer about status change
@@ -752,6 +770,100 @@ export const downloadInvoice = async (req: Request, res: Response): Promise<void
   }
 };
 
+/**
+ * Download calendar event for shipping date
+ * GET /api/orders/:id/sub-orders/:subOrderId/calendar
+ * Requires: Customer (order owner only)
+ */
+export const downloadShippingCalendar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+      return;
+    }
+
+    const { id: orderId, subOrderId } = req.params;
+
+    // Find order and populate necessary fields
+    const order = await Order.findById(orderId)
+      .populate('customerId', 'email profile')
+      .populate('subOrders.retailerId', 'email profile businessName');
+
+    if (!order) {
+      res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+      return;
+    }
+
+    // Check if user is the customer who owns this order
+    const isCustomer = order.customerId._id.toString() === req.user._id.toString();
+
+    if (!isCustomer) {
+      res.status(403).json({
+        success: false,
+        message: 'Only the customer can download the shipping calendar',
+      });
+      return;
+    }
+
+    // Find the specific sub-order
+    const subOrder = order.subOrders.find(so => so.subOrderId === subOrderId);
+
+    if (!subOrder) {
+      res.status(404).json({
+        success: false,
+        message: 'Sub-order not found',
+      });
+      return;
+    }
+
+    // Check if shipping date is set
+    if (!subOrder.expectedShippingDate) {
+      res.status(400).json({
+        success: false,
+        message: 'Shipping date has not been set for this sub-order yet',
+      });
+      return;
+    }
+
+    // Extract customer and retailer info
+    const customer: any = order.customerId;
+    const customerName = customer.profile?.name || customer.email;
+    const customerEmail = customer.email;
+
+    const retailer: any = subOrder.retailerId;
+    const retailerName = retailer.businessName || retailer.profile?.name || 'Retailer';
+
+    // Generate .ics content
+    const icsContent = calendarService.generateShippingCalendarEvent(
+      order,
+      subOrder,
+      customerName,
+      customerEmail,
+      retailerName
+    );
+
+    const filename = calendarService.generateFilename(order.orderId, subOrderId);
+
+    // Set headers for .ics file download
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    res.status(200).send(icsContent);
+  } catch (error: any) {
+    logger.error('❌ Download shipping calendar error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to generate calendar event',
+    });
+  }
+};
+
 export default {
   createOrder,
   getMyOrders,
@@ -763,4 +875,5 @@ export default {
   markOrderAsPaid,
   markSubOrderAsPaid,
   downloadInvoice,
+  downloadShippingCalendar,
 };

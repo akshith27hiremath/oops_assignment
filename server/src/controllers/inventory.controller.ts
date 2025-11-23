@@ -73,6 +73,31 @@ export const createInventory = async (req: Request, res: Response): Promise<void
 
     const { productId, currentStock, reorderLevel, sellingPrice } = req.body;
 
+    // Validate stock values
+    if (currentStock !== undefined && (currentStock < 0 || !Number.isInteger(currentStock))) {
+      res.status(400).json({
+        success: false,
+        message: 'Current stock must be a non-negative integer',
+      });
+      return;
+    }
+
+    if (reorderLevel !== undefined && (reorderLevel < 0 || !Number.isInteger(reorderLevel))) {
+      res.status(400).json({
+        success: false,
+        message: 'Reorder level must be a non-negative integer',
+      });
+      return;
+    }
+
+    if (sellingPrice !== undefined && sellingPrice < 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Selling price must be non-negative',
+      });
+      return;
+    }
+
     // Check if product exists
     const product = await Product.findById(productId);
     if (!product) {
@@ -180,6 +205,12 @@ export const updateStock = async (req: Request, res: Response): Promise<void> =>
     inventory.currentStock = currentStock;
     inventory.availability = currentStock > 0;
     inventory.lastRestocked = new Date();
+
+    // Clear expected availability date if stock is now available
+    if (currentStock > 0) {
+      inventory.expectedAvailabilityDate = undefined;
+    }
+
     await inventory.save();
 
     res.status(200).json({
@@ -192,6 +223,62 @@ export const updateStock = async (req: Request, res: Response): Promise<void> =>
     res.status(400).json({
       success: false,
       message: error.message || 'Failed to update stock',
+    });
+  }
+};
+
+/**
+ * Update expected availability date
+ * PATCH /api/inventory/:id/availability-date
+ */
+export const updateExpectedAvailability = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+      return;
+    }
+
+    const { id } = req.params;
+    const { expectedAvailabilityDate } = req.body;
+
+    const inventory = await Inventory.findById(id);
+
+    if (!inventory) {
+      res.status(404).json({
+        success: false,
+        message: 'Inventory not found',
+      });
+      return;
+    }
+
+    // Check ownership
+    if (inventory.ownerId.toString() !== req.user._id.toString()) {
+      res.status(403).json({
+        success: false,
+        message: 'You can only update your own inventory',
+      });
+      return;
+    }
+
+    // Update expected availability date (can be null to clear it)
+    inventory.expectedAvailabilityDate = expectedAvailabilityDate ? new Date(expectedAvailabilityDate) : undefined;
+    await inventory.save();
+
+    logger.info(`✅ Expected availability date updated for inventory: ${id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Expected availability date updated successfully',
+      data: { inventory },
+    });
+  } catch (error: any) {
+    logger.error('❌ Update expected availability error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to update expected availability date',
     });
   }
 };
@@ -392,6 +479,7 @@ export default {
   getInventory,
   createInventory,
   updateStock,
+  updateExpectedAvailability,
   getInventoryByProduct,
   setProductDiscount,
   removeProductDiscount,

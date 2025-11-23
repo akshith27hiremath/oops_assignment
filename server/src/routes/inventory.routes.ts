@@ -38,6 +38,14 @@ router.patch(
   inventoryController.updateStock
 );
 
+// PATCH /api/inventory/:id/availability-date - Update expected availability date
+router.patch(
+  '/:id/availability-date',
+  authenticate,
+  requireSeller,
+  inventoryController.updateExpectedAvailability
+);
+
 // GET /api/inventory/featured - Get featured products (public, no auth needed)
 router.get(
   '/featured',

@@ -166,7 +166,7 @@ const OrderHistory: React.FC = () => {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">${order.totalAmount.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">₹{order.totalAmount.toFixed(2)}</p>
                       <div className="flex gap-2 mt-2">
                         {getStatusBadge(order.masterStatus || order.status!)}
                         {getPaymentStatusBadge(order.paymentStatus)}
@@ -190,9 +190,104 @@ const OrderHistory: React.FC = () => {
                             </span>
                             {getStatusBadge(subOrder.status)}
                             <span className="text-sm font-semibold text-gray-900 dark:text-white ml-auto">
-                              ${subOrder.totalAmount.toFixed(2)}
+                              ₹{subOrder.totalAmount.toFixed(2)}
                             </span>
                           </div>
+
+                          {/* Expected Shipping Date Display (PROCESSING status) */}
+                          {(() => {
+                            const isProcessing = subOrder.status === 'PROCESSING';
+                            const expectedShippingDate = (subOrder as any).expectedShippingDate;
+
+                            if (!isProcessing || !expectedShippingDate) return null;
+
+                            const shippingDate = new Date(expectedShippingDate);
+
+                            return (
+                              <div className="mb-3 ml-6">
+                                <div className="flex items-center gap-2">
+                                  <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-700 rounded-lg">
+                                    <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                      Expected Shipping:
+                                    </span>
+                                    <span className="text-xs font-semibold text-purple-700 dark:text-purple-400">
+                                      {shippingDate.toLocaleDateString('en-IN', {
+                                        weekday: 'long',
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                      })}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const blob = await orderService.downloadShippingCalendar(order._id, subOrder.subOrderId);
+                                        const url = window.URL.createObjectURL(blob);
+                                        const link = document.createElement('a');
+                                        link.href = url;
+                                        link.download = `LiveMART-Shipping-${subOrder.subOrderId}.ics`;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        window.URL.revokeObjectURL(url);
+                                        toast.success('Calendar event downloaded! Open it to add to your calendar.');
+                                      } catch (error: any) {
+                                        toast.error('Failed to download calendar event');
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-white dark:bg-gray-800 border border-purple-300 dark:border-purple-600 rounded-md hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    Add to Calendar
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* ETA Display for Shipped Orders */}
+                          {(() => {
+                            const isShipped = ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(subOrder.status);
+                            if (!isShipped || !subOrder.deliveryEstimate) return null;
+
+                            // Find shipped timestamp
+                            const shippedStatusEntry = subOrder.trackingInfo.statusHistory.find(
+                              (entry) => entry.status === 'SHIPPED'
+                            );
+                            const shippedTime = shippedStatusEntry ? new Date(shippedStatusEntry.timestamp) : null;
+
+                            // Calculate ETA
+                            const eta = shippedTime
+                              ? new Date(shippedTime.getTime() + subOrder.deliveryEstimate.durationSeconds * 1000)
+                              : null;
+
+                            if (!eta) return null;
+
+                            return (
+                              <div className="mb-3 ml-6">
+                                <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+                                  <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                    Expected Arrival:
+                                  </span>
+                                  <span className="text-xs font-semibold text-green-700 dark:text-green-400">
+                                    {eta.toLocaleString('en-IN', {
+                                      dateStyle: 'medium',
+                                      timeStyle: 'short',
+                                    })}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           {/* Items for this sub-order */}
                           {subOrder.items.map((item, index) => {
@@ -224,7 +319,7 @@ const OrderHistory: React.FC = () => {
                                     </span>
                                   )}
                                 </div>
-                                <p className="font-semibold text-gray-900 dark:text-white">${item.subtotal.toFixed(2)}</p>
+                                <p className="font-semibold text-gray-900 dark:text-white">₹{item.subtotal.toFixed(2)}</p>
                                 {canReview && (
                                   <button
                                     onClick={() => setReviewingProduct({ orderId: order._id, productId, productName })}
@@ -269,7 +364,7 @@ const OrderHistory: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <p className="font-semibold text-gray-900 dark:text-white">${item.subtotal.toFixed(2)}</p>
+                            <p className="font-semibold text-gray-900 dark:text-white">₹{item.subtotal.toFixed(2)}</p>
                             {canReview && (
                               <button
                                 onClick={() => setReviewingProduct({ orderId: order._id, productId, productName })}
@@ -384,10 +479,137 @@ const OrderHistory: React.FC = () => {
                   {selectedOrder.deliveryAddress.state} - {selectedOrder.deliveryAddress.zipCode}<br />
                   {selectedOrder.deliveryAddress.country}
                 </p>
+
+                {/* Show delivery estimates for multi-retailer orders */}
+                {selectedOrder.subOrders && selectedOrder.subOrders.length > 0 ? (
+                  // Multi-retailer: Show each sub-order's delivery estimate when shipped
+                  <div className="mt-3 space-y-2">
+                    {selectedOrder.subOrders.map((subOrder, index) => {
+                      const isShipped = ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(subOrder.status);
+                      if (!isShipped || !subOrder.deliveryEstimate) return null;
+
+                      // Find the timestamp when the order was shipped
+                      const shippedStatusEntry = subOrder.trackingInfo.statusHistory.find(
+                        (entry) => entry.status === 'SHIPPED'
+                      );
+                      const shippedTime = shippedStatusEntry ? new Date(shippedStatusEntry.timestamp) : null;
+
+                      // Calculate ETA: shipped time + delivery duration
+                      const eta = shippedTime
+                        ? new Date(shippedTime.getTime() + subOrder.deliveryEstimate.durationSeconds * 1000)
+                        : null;
+
+                      return (
+                        <div key={subOrder.subOrderId} className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            <h5 className="text-xs font-semibold text-green-900 dark:text-green-300">
+                              Package {index + 1} from {subOrder.retailerId.businessName || 'Retailer'} - On The Way!
+                            </h5>
+                          </div>
+                          <div className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
+                            <p>
+                              <span className="text-gray-600 dark:text-gray-400">Distance:</span>{' '}
+                              <span className="font-medium">{subOrder.deliveryEstimate.distanceText}</span>
+                            </p>
+                            <p>
+                              <span className="text-gray-600 dark:text-gray-400">Travel Time:</span>{' '}
+                              <span className="font-medium">{subOrder.deliveryEstimate.durationText}</span>
+                            </p>
+                            {shippedTime && (
+                              <p>
+                                <span className="text-gray-600 dark:text-gray-400">Shipped At:</span>{' '}
+                                <span className="font-medium">
+                                  {shippedTime.toLocaleString('en-IN', {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  })}
+                                </span>
+                              </p>
+                            )}
+                            {eta && (
+                              <p>
+                                <span className="text-gray-600 dark:text-gray-400">Expected Arrival:</span>{' '}
+                                <span className="font-medium text-green-700 dark:text-green-400">
+                                  {eta.toLocaleString('en-IN', {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  })}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  // Single-retailer (backward compatibility): Show master delivery estimate
+                  (() => {
+                    const isShipped = (selectedOrder as any).masterStatus === 'SHIPPED' || selectedOrder.status === 'SHIPPED';
+                    if (!isShipped || !(selectedOrder as any).deliveryEstimate) return null;
+
+                    // Find shipped timestamp from tracking info
+                    const shippedStatusEntry = selectedOrder.trackingInfo?.statusHistory?.find(
+                      (entry) => entry.status === 'SHIPPED'
+                    );
+                    const shippedTime = shippedStatusEntry ? new Date(shippedStatusEntry.timestamp) : null;
+
+                    // Calculate ETA
+                    const eta = shippedTime
+                      ? new Date(shippedTime.getTime() + (selectedOrder as any).deliveryEstimate.durationSeconds * 1000)
+                      : null;
+
+                    return (
+                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          <h5 className="text-xs font-semibold text-green-900 dark:text-green-300">On The Way!</h5>
+                        </div>
+                        <div className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
+                          <p>
+                            <span className="text-gray-600 dark:text-gray-400">Distance:</span>{' '}
+                            <span className="font-medium">{(selectedOrder as any).deliveryEstimate.distanceText}</span>
+                          </p>
+                          <p>
+                            <span className="text-gray-600 dark:text-gray-400">Travel Time:</span>{' '}
+                            <span className="font-medium">{(selectedOrder as any).deliveryEstimate.durationText}</span>
+                          </p>
+                          {shippedTime && (
+                            <p>
+                              <span className="text-gray-600 dark:text-gray-400">Shipped At:</span>{' '}
+                              <span className="font-medium">
+                                {shippedTime.toLocaleString('en-IN', {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                })}
+                              </span>
+                            </p>
+                          )}
+                          {eta && (
+                            <p>
+                              <span className="text-gray-600 dark:text-gray-400">Expected Arrival:</span>{' '}
+                              <span className="font-medium text-green-700 dark:text-green-400">
+                                {eta.toLocaleString('en-IN', {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                })}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">${selectedOrder.totalAmount.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">₹{selectedOrder.totalAmount.toFixed(2)}</p>
               </div>
             </div>
           </div>

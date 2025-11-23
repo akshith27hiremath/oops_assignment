@@ -20,6 +20,7 @@
     "migrate:suborder-payment": "ts-node --transpile-only scripts/migrate-suborder-payment-status.ts",
     "migrate:wishlist": "ts-node --transpile-only src/scripts/migrate-wishlist.ts",
     "migrate:gateways": "ts-node --transpile-only src/scripts/update-transaction-gateways.ts",
+    "verify:inventory": "ts-node --transpile-only scripts/verify-inventory-availability.ts",
     "test:price-monitoring": "ts-node --transpile-only src/scripts/test-price-monitoring.ts",
     "cron:price-monitoring": "ts-node --transpile-only src/scripts/test-price-monitoring.ts"
   },

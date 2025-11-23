@@ -18,6 +18,7 @@ const OrderManagement: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [shippingDate, setShippingDate] = useState<string>('');
 
   useEffect(() => {
     loadOrders();
@@ -44,7 +45,7 @@ const OrderManagement: React.FC = () => {
 
       // If we have a subOrderId, update the sub-order; otherwise update the main order
       if (subOrderId) {
-        await orderService.updateSubOrderStatus(orderId, subOrderId, newStatus);
+        await orderService.updateSubOrderStatus(orderId, subOrderId, newStatus, shippingDate || undefined);
       } else {
         await orderService.updateOrderStatus(orderId, newStatus);
       }
@@ -52,6 +53,7 @@ const OrderManagement: React.FC = () => {
       toast.success('Order status updated successfully');
       loadOrders();
       setSelectedOrder(null);
+      setShippingDate(''); // Reset shipping date
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update order status');
     } finally {
@@ -247,6 +249,32 @@ const OrderManagement: React.FC = () => {
                           <br />
                           {order.deliveryAddress.country}
                         </p>
+
+                        {/* Delivery Estimate - Show from sub-order if available, fallback to master order estimate */}
+                        {(mySubOrder?.deliveryEstimate || (order as any).deliveryEstimate) && (
+                          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <h5 className="text-xs font-semibold text-blue-900 dark:text-blue-300">Your Delivery Estimate</h5>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-gray-600 dark:text-gray-400">Distance:</span>
+                                <span className="ml-1 font-medium text-gray-900 dark:text-white">
+                                  {(mySubOrder?.deliveryEstimate || (order as any).deliveryEstimate).distanceText}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-600 dark:text-gray-400">ETA:</span>
+                                <span className="ml-1 font-medium text-gray-900 dark:text-white">
+                                  {(mySubOrder?.deliveryEstimate || (order as any).deliveryEstimate).durationText}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -380,13 +408,31 @@ const OrderManagement: React.FC = () => {
                       </button>
                     )}
                     {currentStatus === OrderStatus.CONFIRMED && (
-                      <button
-                        onClick={() => handleUpdateStatus(selectedOrder._id, mySubOrder?.subOrderId, OrderStatus.PROCESSING)}
-                        disabled={updatingStatus}
-                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:bg-gray-400"
-                      >
-                        Start Processing
-                      </button>
+                      <>
+                        <div>
+                          <label htmlFor="shippingDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Expected Shipping Date (Optional)
+                          </label>
+                          <input
+                            type="date"
+                            id="shippingDate"
+                            value={shippingDate}
+                            onChange={(e) => setShippingDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          />
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Customer will receive a calendar invite when you set a shipping date
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleUpdateStatus(selectedOrder._id, mySubOrder?.subOrderId, OrderStatus.PROCESSING)}
+                          disabled={updatingStatus}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:bg-gray-400"
+                        >
+                          Start Processing
+                        </button>
+                      </>
                     )}
                     {currentStatus === OrderStatus.PROCESSING && (
                       <button

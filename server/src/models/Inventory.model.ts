@@ -34,6 +34,7 @@ export interface IInventory extends Document {
   discounts: IDiscount[];
   productDiscount?: IProductDiscount; // Simple product-level discount for featured products
   availability: boolean;
+  expectedAvailabilityDate?: Date; // When product will be back in stock (optional, for out of stock items)
   lastRestocked: Date;
   // B2B tracking fields
   sourceType?: 'SELF_CREATED' | 'B2B_ORDER'; // How this inventory was created
@@ -159,6 +160,10 @@ const InventorySchema = new Schema<IInventory>({
     type: Boolean,
     default: true,
     index: true,
+  },
+  expectedAvailabilityDate: {
+    type: Date,
+    required: false,
   },
   lastRestocked: {
     type: Date,

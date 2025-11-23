@@ -21,6 +21,7 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
   try {
     const {
       category,
+      subcategory,
       search,
       minPrice,
       maxPrice,
@@ -155,6 +156,7 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
                     sellingPrice: 1,
                     productDiscount: 1,
                     availability: 1,
+                    expectedAvailabilityDate: 1,
                     owner: {
                       _id: 1,
                       businessName: 1,
@@ -232,6 +234,10 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
       productMatch['category.name'] = category;
     }
 
+    if (subcategory) {
+      productMatch['category.subcategory'] = subcategory;
+    }
+
     if (search) {
       productMatch.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -265,7 +271,7 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
             {
               $match: {
                 $expr: { $eq: ['$productId', '$$productId'] },
-                availability: true, // Only available inventory
+                // Include all inventory (even unavailable) to show stock status and expected dates
               },
             },
             // Lookup owner to filter by userType
@@ -294,6 +300,7 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
                 sellingPrice: 1,
                 productDiscount: 1,
                 availability: 1,
+                expectedAvailabilityDate: 1,
               },
             },
           ],
@@ -425,7 +432,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
             {
               $match: {
                 $expr: { $eq: ['$productId', '$$productId'] },
-                availability: true,
+                // Include all inventory (even unavailable) to show stock status and expected dates
               },
             },
             // Lookup owner to filter by userType

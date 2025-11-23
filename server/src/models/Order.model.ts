@@ -84,6 +84,18 @@ export interface ISubOrder {
   paymentStatus: PaymentStatus; // Payment status for this sub-order
   trackingInfo: ITrackingInfo;
 
+  // Delivery estimate for this specific retailer
+  deliveryEstimate?: {
+    distanceMeters: number;
+    distanceText: string; // e.g., "5.2 km"
+    durationSeconds: number;
+    durationText: string; // e.g., "15 mins"
+    calculatedAt: Date;
+  };
+
+  // Calendar integration
+  expectedShippingDate?: Date; // Date when retailer expects to ship this sub-order
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -109,6 +121,17 @@ export interface IOrder extends Document {
     state: string;
     zipCode: string;
     country: string;
+  };
+  deliveryCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  deliveryEstimate?: {
+    distanceMeters: number;
+    distanceText: string; // e.g., "5.2 km"
+    durationSeconds: number;
+    durationText: string; // e.g., "15 mins"
+    calculatedAt: Date;
   };
   scheduledDate?: Date;
   trackingInfo?: ITrackingInfo; // Deprecated - kept for backward compatibility
@@ -262,6 +285,16 @@ const SubOrderSchema = new Schema<ISubOrder>({
     type: TrackingInfoSchema,
     required: true,
   },
+  deliveryEstimate: {
+    distanceMeters: { type: Number },
+    distanceText: { type: String },
+    durationSeconds: { type: Number },
+    durationText: { type: String },
+    calculatedAt: { type: Date },
+  },
+  expectedShippingDate: {
+    type: Date,
+  },
 }, { timestamps: true, _id: false });
 
 // Order Schema
@@ -332,6 +365,17 @@ const OrderSchema = new Schema<IOrder>({
     state: { type: String, required: true },
     zipCode: { type: String, required: true },
     country: { type: String, required: true, default: 'India' },
+  },
+  deliveryCoordinates: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+  },
+  deliveryEstimate: {
+    distanceMeters: { type: Number },
+    distanceText: { type: String },
+    durationSeconds: { type: Number },
+    durationText: { type: String },
+    calculatedAt: { type: Date },
   },
   scheduledDate: Date,
   upiTransactionId: {

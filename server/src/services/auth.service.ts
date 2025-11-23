@@ -47,6 +47,17 @@ class AuthService {
    */
   async register(data: RegisterData): Promise<{ user: any; tokens: TokenPair; requiresOTP?: boolean }> {
     try {
+      // Validate password confirmation
+      if (data.password && data.confirmPassword && data.password !== data.confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(data.email)) {
+        throw new Error('Invalid email format');
+      }
+
       // Check if user already exists
       const existingUser = await User.findOne({ email: data.email });
       if (existingUser) {

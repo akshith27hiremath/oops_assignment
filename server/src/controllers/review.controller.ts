@@ -33,6 +33,16 @@ export const createReview = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    // Validate rating is between 1 and 5
+    const ratingNum = parseFloat(rating);
+    if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      res.status(400).json({
+        success: false,
+        message: 'Rating must be a number between 1 and 5',
+      });
+      return;
+    }
+
     // Handle uploaded image files
     let imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {

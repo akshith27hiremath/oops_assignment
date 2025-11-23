@@ -24,7 +24,18 @@
       "Bash(RETAILER_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTAzNjgwYWRmODdhYmMxOTNjZTVmNGIiLCJlbWFpbCI6ImRhaXJ5ZGVsaWdodHNAaHlkZXJhYmFkLmNvbSIsInVzZXJUeXBlIjoiUkVUQUlMRVIiLCJpYXQiOjE3NjI3ODc4MTksImV4cCI6MTc2Mjc4ODcxOX0.JGr6_2cWanAqdNId6AQDfkHeCTzQndyxQA-EFnfnPBM\":*)",
       "Bash(RETAILER_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTAzNjgwYWRmODdhYmMxOTNjZTVmNGIiLCJlbWFpbCI6ImRhaXJ5ZGVsaWdodHNAaHlkZXJhYmFkLmNvbSIsInVzZXJUeXBlIjoiUkVUQUlMRVIiLCJpYXQiOjE3NjI4Nzk2NDgsImV4cCI6MTc2Mjg4MDU0OH0.mk1uOwER5FvlgUpFEGvZI3ICq70nddLISLQw8i6Cvbw\":*)",
       "Bash(python:*)",
-      "Bash(docker inspect:*)"
+      "Bash(docker inspect:*)",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__performance_start_trace",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__fill",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__evaluate_script",
+      "mcp__chrome-devtools__wait_for",
+      "mcp__chrome-devtools__fill_form",
+      "mcp__chrome-devtools__press_key",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

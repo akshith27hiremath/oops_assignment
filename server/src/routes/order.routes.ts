@@ -100,6 +100,15 @@ router.get(
   orderController.downloadInvoice
 );
 
+// GET /api/orders/:id/sub-orders/:subOrderId/calendar - Download shipping calendar event
+// Requires: CUSTOMER role (order owner only)
+router.get(
+  '/:id/sub-orders/:subOrderId/calendar',
+  authenticate,
+  requireCustomer,
+  orderController.downloadShippingCalendar
+);
+
 // GET /api/orders/:id/reviewable-items - Get items that can be reviewed
 // Requires: CUSTOMER role (order owner only)
 router.get(

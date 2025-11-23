@@ -29,6 +29,7 @@ export interface RetailerInventory {
   sellingPrice: number;
   productDiscount?: ProductDiscount;
   availability: boolean;
+  expectedAvailabilityDate?: string;
   owner?: {
     _id: string;
     profile?: {

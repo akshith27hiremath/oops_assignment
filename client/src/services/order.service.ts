@@ -45,10 +45,10 @@ class OrderService {
   /**
    * Update sub-order status (Retailer only - for multi-retailer orders)
    */
-  async updateSubOrderStatus(orderId: string, subOrderId: string, status: string): Promise<ApiResponse> {
+  async updateSubOrderStatus(orderId: string, subOrderId: string, status: string, expectedShippingDate?: string): Promise<ApiResponse> {
     const response = await apiClient.put<ApiResponse>(
       `/orders/${orderId}/sub-orders/${subOrderId}/status`,
-      { status }
+      { status, expectedShippingDate }
     );
     return response.data;
   }
@@ -106,6 +106,16 @@ class OrderService {
    */
   async downloadInvoice(orderId: string): Promise<Blob> {
     const response = await apiClient.get(`/orders/${orderId}/invoice`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  /**
+   * Download shipping calendar event (.ics file)
+   */
+  async downloadShippingCalendar(orderId: string, subOrderId: string): Promise<Blob> {
+    const response = await apiClient.get(`/orders/${orderId}/sub-orders/${subOrderId}/calendar`, {
       responseType: 'blob',
     });
     return response.data;

@@ -25,6 +25,7 @@ const CustomerProfile: React.FC = () => {
   const [passwordMode, setPasswordMode] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [loadingAddress, setLoadingAddress] = useState(false);
+  const [updatingLocation, setUpdatingLocation] = useState(false);
 
   // Loyalty & Discount state
   const [loyaltyTier, setLoyaltyTier] = useState<LoyaltyTier>(LoyaltyTier.BRONZE);
@@ -183,6 +184,34 @@ const CustomerProfile: React.FC = () => {
       toast.error(error.response?.data?.message || 'Failed to update password');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateLocation = async () => {
+    try {
+      setUpdatingLocation(true);
+      const location = await geolocationService.getCurrentPosition();
+
+      const response = await profileService.updateLocation({
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+
+      if (response.success) {
+        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+
+        // Update address display
+        if (mapsLoaded) {
+          loadAddress(location.latitude, location.longitude);
+        }
+
+        toast.success('Location updated successfully!');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Failed to update location');
+    } finally {
+      setUpdatingLocation(false);
     }
   };
 
@@ -466,9 +495,21 @@ const CustomerProfile: React.FC = () => {
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Saved Location
-                  </label>
+                  <div className="flex justify-between items-start mb-1">
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Saved Location
+                    </label>
+                    <button
+                      onClick={handleUpdateLocation}
+                      disabled={updatingLocation}
+                      className="flex items-center gap-1 px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      </svg>
+                      {updatingLocation ? 'Updating...' : 'Update Location'}
+                    </button>
+                  </div>
                   {user?.profile?.location?.coordinates ? (
                     <div className="space-y-3">
                       <div className="flex items-start gap-2">
@@ -510,7 +551,7 @@ const CustomerProfile: React.FC = () => {
                     <div className="space-y-2">
                       <p className="text-base text-gray-900 dark:text-white">No location set</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Visit the Nearby Stores page to set your location
+                        Click "Update Location" above to set your location using GPS
                       </p>
                     </div>
                   )}

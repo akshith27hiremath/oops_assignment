@@ -1,0 +1,23 @@
+All user account creation examples
+Show email otp functionality for customer.
+Show google api integration for location.
+Then show oauth with the existing amazingaky123@gmail.com - 2.5 minutes
+
+Quick run through of existing users we'll show for testing - 2 minutes
+
+Show usage of elasticsearch for fuzzymatch, sorting by distance, view nearby stores, sorting by price - 1 minute
+
+Show all features of consumer dashboard : featured products, recipes, cart drawer, notifications, wishlist, link to wishlist and notifying when price drops, analytics and downloadable transaction history - 5 minutes
+
+Retailer and Wholesaler dashboard:
+
+    Retailer, show: view all orders, edit order statuses, view sales analytics, view top customers, view all reviews, respond to reviews.
+    Show B2B marketplace functionality
+    Show inventory management, discount system, and adding/editing new products - 3 minutes
+
+    Wholesaler, show: invoice system, min stock order, product creation, retailer network, track analytics - 3 minutes
+
+Show checkout feature, payment options, smart discount application, and full notification system with email proof
+Show order tracking and retailer status updates - 5 minutes
+
+Show complete review system with image support, helpful/not helpful voting, and retailer response to reviews - 2 minutes

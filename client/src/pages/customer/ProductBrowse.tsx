@@ -40,8 +40,18 @@ const ProductBrowse: React.FC = () => {
   const [sortBy, setSortBy] = useState<'relevance' | 'price-low' | 'price-high' | 'delivery'>('relevance');
   const { addItem } = useCartStore();
 
+  // Category-subcategory mapping
+  const categorySubcategories: Record<string, string[]> = {
+    'Fruits': ['Fresh Fruits', 'Citrus Fruits', 'Berries', 'Tropical Fruits', 'Dried Fruits'],
+    'Vegetables': ['Leafy Greens', 'Root Vegetables', 'Fresh Vegetables', 'Exotic Vegetables'],
+    'Dairy': ['Milk Products', 'Cheese', 'Yogurt', 'Butter & Cream'],
+    'Grains': ['Rice', 'Wheat Products', 'Millets', 'Pulses & Lentils'],
+    'Spices': ['Whole Spices', 'Ground Spices', 'Spice Blends', 'Herbs'],
+    'Beverages': ['Juices', 'Tea & Coffee', 'Health Drinks', 'Soft Drinks']
+  };
+
   // Real categories from backend
-  const categories = ['Fruits', 'Vegetables', 'Dairy', 'Grains', 'Spices', 'Beverages'];
+  const categories = Object.keys(categorySubcategories);
 
   // Handle search query and product ID from dashboard
   useEffect(() => {
@@ -202,6 +212,22 @@ const ProductBrowse: React.FC = () => {
     );
   };
 
+  // Get stock info from retailer inventories
+  const getStockInfo = (product: Product): { stock: number; expectedDate?: string } | null => {
+    if (!product.retailerInventories || product.retailerInventories.length === 0) {
+      return null;
+    }
+
+    // Get the first retailer with stock, or first inventory
+    const retailerWithStock = product.retailerInventories.find(inv => inv.currentStock > 0);
+    const inventory = retailerWithStock || product.retailerInventories[0];
+
+    return {
+      stock: inventory.currentStock - inventory.reservedStock,
+      expectedDate: inventory.expectedAvailabilityDate,
+    };
+  };
+
   const getSortedProducts = (): Product[] => {
     const productsCopy = [...products];
 
@@ -298,8 +324,19 @@ const ProductBrowse: React.FC = () => {
   };
 
   const handleFilterChange = (key: keyof ProductFilters, value: any) => {
-    // If value is empty string or undefined, remove the filter
-    if (value === '' || value === undefined) {
+    // If changing category, clear subcategory
+    if (key === 'category') {
+      const newFilters = { ...filters };
+      delete newFilters.subcategory; // Clear subcategory when category changes
+
+      if (value === '' || value === undefined) {
+        delete newFilters.category;
+        setFilters(newFilters);
+      } else {
+        setFilters({ ...newFilters, category: value });
+      }
+    } else if (value === '' || value === undefined) {
+      // If value is empty string or undefined, remove the filter
       const newFilters = { ...filters };
       delete newFilters[key];
       setFilters(newFilters);
@@ -377,19 +414,17 @@ const ProductBrowse: React.FC = () => {
 
   const handleAddToCart = async (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
+
+    // Check stock before adding
+    const stockInfo = getStockInfo(product);
+    if (!stockInfo || stockInfo.stock <= 0) {
+      toast.error('This item is currently out of stock');
+      return;
+    }
+
     try {
-      console.log('🛒 Adding to cart:', product.name);
-      console.log('   Has retailerInventories?', !!product.retailerInventories);
-      console.log('   retailerInventories:', product.retailerInventories);
-
-      // Debug: Check if product has discount data
-      if (product.name === 'Fresh Milk' && !product.retailerInventories) {
-        toast.error('DEBUG: Fresh Milk missing retailerInventories!');
-      } else if (product.name === 'Fresh Milk' && product.retailerInventories) {
-        toast.success(`DEBUG: Fresh Milk HAS ${product.retailerInventories.length} inventories`);
-      }
-
       addItem(product, 1);
+      toast.success('Added to cart!');
     } catch (error) {
       toast.error('Failed to add to cart');
     }
@@ -707,6 +742,49 @@ const ProductBrowse: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Stock Info */}
+                  {(() => {
+                    const stockInfo = getStockInfo(product);
+                    if (!stockInfo) return null;
+
+                    if (stockInfo.stock > 0) {
+                      return (
+                        <div className="mt-2 flex items-center gap-1 text-xs">
+                          <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="text-green-600 dark:text-green-400 font-medium">
+                            {stockInfo.stock} in stock
+                          </span>
+                        </div>
+                      );
+                    } else if (stockInfo.expectedDate) {
+                      const expectedDate = new Date(stockInfo.expectedDate);
+                      const formattedDate = expectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      return (
+                        <div className="mt-2 flex items-center gap-1 text-xs">
+                          <svg className="w-3 h-3 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-orange-600 dark:text-orange-400">
+                            Back {formattedDate}
+                          </span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="mt-2 flex items-center gap-1 text-xs">
+                          <svg className="w-3 h-3 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          <span className="text-red-600 dark:text-red-400">
+                            Out of stock
+                          </span>
+                        </div>
+                      );
+                    }
+                  })()}
+
                   {/* Arrow Icon */}
                   <div className="flex justify-end mt-2">
                     <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -817,6 +895,23 @@ const ProductBrowse: React.FC = () => {
                     </select>
                   </div>
 
+                  {/* Subcategory Filter - Only show when category is selected */}
+                  {filters.category && categorySubcategories[filters.category] && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Subcategory</label>
+                      <select
+                        value={filters.subcategory || ''}
+                        onChange={(e) => handleFilterChange('subcategory', e.target.value || undefined)}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="">All {filters.category}</option>
+                        {categorySubcategories[filters.category].map(subcat => (
+                          <option key={subcat} value={subcat}>{subcat}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Price Range Filter */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Price Range</label>
@@ -885,6 +980,27 @@ const ProductBrowse: React.FC = () => {
               >
                 {/* Product Image */}
                 <div className="relative aspect-square bg-gray-100 dark:bg-gray-700">
+                  {/* Out of Stock Overlay */}
+                  {(() => {
+                    const stockInfo = getStockInfo(product);
+                    if (stockInfo && stockInfo.stock <= 0) {
+                      return (
+                        <div className="absolute inset-0 bg-red-600 bg-opacity-80 z-20 flex flex-col items-center justify-center">
+                          <svg className="w-16 h-16 text-white mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          <span className="text-white font-bold text-lg">OUT OF STOCK</span>
+                          {stockInfo.expectedDate && (
+                            <span className="text-white text-sm mt-1">
+                              Back {new Date(stockInfo.expectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
                   {product.tags?.includes('Organic') && (
                     <span className="absolute top-3 left-3 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
                       Organic
@@ -975,6 +1091,49 @@ const ProductBrowse: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Stock Display */}
+                  {(() => {
+                    const stockInfo = getStockInfo(product);
+                    if (!stockInfo) return null;
+
+                    if (stockInfo.stock > 0) {
+                      return (
+                        <div className="flex items-center gap-1 text-xs mb-3">
+                          <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="text-green-600 dark:text-green-400 font-medium">
+                            {stockInfo.stock} in stock
+                          </span>
+                        </div>
+                      );
+                    } else if (stockInfo.expectedDate) {
+                      const expectedDate = new Date(stockInfo.expectedDate);
+                      const formattedDate = expectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      return (
+                        <div className="flex items-center gap-1 text-xs mb-3">
+                          <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-orange-600 dark:text-orange-400 font-medium">
+                            Back {formattedDate}
+                          </span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="flex items-center gap-1 text-xs mb-3">
+                          <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          <span className="text-red-600 dark:text-red-400 font-medium">
+                            Out of stock
+                          </span>
+                        </div>
+                      );
+                    }
+                  })()}
+
                   {/* Price and Cart */}
                   <div className="flex items-center justify-between">
                     <div>
@@ -1006,7 +1165,13 @@ const ProductBrowse: React.FC = () => {
                     </div>
                     <button
                       onClick={(e) => handleAddToCart(e, product)}
-                      className="p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      disabled={getStockInfo(product)?.stock === 0}
+                      className={`p-3 rounded-lg transition-colors ${
+                        getStockInfo(product)?.stock === 0
+                          ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-50'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                      title={getStockInfo(product)?.stock === 0 ? 'Out of stock' : 'Add to cart'}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />

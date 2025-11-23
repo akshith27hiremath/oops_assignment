@@ -60,6 +60,13 @@ export interface SubOrder {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   trackingInfo: TrackingInfo;
+  deliveryEstimate?: {
+    distanceMeters: number;
+    distanceText: string;
+    durationSeconds: number;
+    durationText: string;
+    calculatedAt: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

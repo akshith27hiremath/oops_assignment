@@ -544,6 +544,12 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     const userId = (req.user as any)._id.toString();
     const updateData = req.body;
 
+    // Handle phone number specially - it should be stored at top level, not in profile
+    if (updateData.profile?.phone) {
+      updateData.phone = updateData.profile.phone;
+      delete updateData.profile.phone; // Remove from nested profile
+    }
+
     // Find and update user
     const user = await User.findByIdAndUpdate(
       userId,

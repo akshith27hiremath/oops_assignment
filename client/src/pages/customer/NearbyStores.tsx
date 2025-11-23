@@ -4,6 +4,7 @@ import GoogleMapComponent from '../../components/maps/GoogleMapComponent';
 import StoreCard from '../../components/maps/StoreCard';
 import storeService from '../../services/store.service';
 import geolocationService from '../../services/geolocation.service';
+import profileService from '../../services/profile.service';
 import { Store, GeoLocation, StoreFilters } from '../../types/store.types';
 import toast from 'react-hot-toast';
 import DarkModeToggle from '../../components/DarkModeToggle';
@@ -29,6 +30,30 @@ const NearbyStores: React.FC = () => {
       loadNearbyStores();
     }
   }, [userLocation, filters]);
+
+  const saveLocationToBackend = async (location: GeoLocation) => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        // Only save to backend if user is logged in
+        await profileService.updateLocation({
+          latitude: location.latitude,
+          longitude: location.longitude,
+        });
+
+        // Update user in localStorage
+        const user = JSON.parse(userStr);
+        user.profile.location = {
+          type: 'Point',
+          coordinates: [location.longitude, location.latitude],
+        };
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+    } catch (error) {
+      console.error('Failed to save location to backend:', error);
+      // Don't show error to user - localStorage save is still successful
+    }
+  };
 
   const loadUserLocation = async () => {
     try {
@@ -59,6 +84,10 @@ const NearbyStores: React.FC = () => {
       const location = await geolocationService.getCurrentPosition();
       setUserLocation(location);
       geolocationService.saveLocation(location);
+
+      // Save to backend database if user is logged in
+      await saveLocationToBackend(location);
+
       toast.success('Location detected successfully');
     } catch (error: any) {
       toast.error(error.message || 'Failed to get your location');
@@ -94,7 +123,11 @@ const NearbyStores: React.FC = () => {
       const location = await geolocationService.getCurrentPosition();
       setUserLocation(location);
       geolocationService.saveLocation(location);
-      toast.success('Location updated');
+
+      // Save to backend database if user is logged in
+      await saveLocationToBackend(location);
+
+      toast.success('Location updated and saved to your profile');
     } catch (error: any) {
       toast.error(error.message || 'Failed to get your location');
     }

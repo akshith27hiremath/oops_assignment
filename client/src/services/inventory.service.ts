@@ -41,6 +41,7 @@ export interface Inventory {
   sellingPrice: number;
   productDiscount?: ProductDiscount;
   availability: boolean;
+  expectedAvailabilityDate?: Date | string;
   lastRestocked: Date;
   // B2B tracking fields
   sourceType?: 'SELF_CREATED' | 'B2B_ORDER';
@@ -102,6 +103,17 @@ class InventoryService {
     const response = await apiClient.patch<ApiResponse<{ inventory: Inventory }>>(
       `/inventory/${inventoryId}/stock`,
       { currentStock }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update expected availability date
+   */
+  async updateExpectedAvailability(inventoryId: string, expectedAvailabilityDate: Date | null): Promise<ApiResponse<{ inventory: Inventory }>> {
+    const response = await apiClient.patch<ApiResponse<{ inventory: Inventory }>>(
+      `/inventory/${inventoryId}/availability-date`,
+      { expectedAvailabilityDate }
     );
     return response.data;
   }

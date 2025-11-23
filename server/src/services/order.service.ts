@@ -7,8 +7,10 @@ import Order, { OrderStatus, PaymentStatus, IOrderItem, ISubOrder } from '../mod
 import Inventory from '../models/Inventory.model';
 import Product from '../models/Product.model';
 import Customer from '../models/Customer.model';
+import User from '../models/User.model';
 import notificationService from './notification.service';
 import discountService from './discount.service';
+import deliveryService from './delivery.service';
 import mongoose from 'mongoose';
 import { logger } from '../utils/logger';
 
@@ -209,7 +211,57 @@ class OrderService {
         subOrderIndex++;
       }
 
-      // STEP 4: Create master order
+      // STEP 4: Calculate delivery estimate for EACH sub-order
+      let deliveryCoordinates: { latitude: number; longitude: number } | undefined;
+      let deliveryEstimate: any;
+
+      if (subOrders.length > 0) {
+        // Calculate estimate for each retailer
+        for (const subOrder of subOrders) {
+          try {
+            const retailer = await User.findById(subOrder.retailerId);
+
+            if (retailer?.profile?.location?.coordinates) {
+              const retailerLocation = {
+                latitude: retailer.profile.location.coordinates[1],
+                longitude: retailer.profile.location.coordinates[0],
+              };
+
+              const estimateResult = await deliveryService.getDeliveryEstimate(
+                retailerLocation,
+                {
+                  ...deliveryAddress,
+                  country: deliveryAddress.country || 'India',
+                }
+              );
+
+              if (estimateResult.estimate) {
+                // Set delivery estimate for THIS sub-order
+                subOrder.deliveryEstimate = estimateResult.estimate;
+                logger.info(`📍 Sub-order ${subOrder.subOrderId} delivery estimate: ${estimateResult.estimate.distanceText}, ${estimateResult.estimate.durationText}`);
+              }
+            }
+          } catch (deliveryError) {
+            logger.warn(`Failed to calculate delivery estimate for sub-order ${subOrder.subOrderId}:`, deliveryError);
+            // Don't fail order creation if delivery estimate fails for one retailer
+          }
+        }
+
+        // Set master-level delivery coordinates and estimate from FIRST sub-order for backward compatibility
+        if (subOrders[0].deliveryEstimate) {
+          const firstRetailer = await User.findById(subOrders[0].retailerId);
+          if (firstRetailer?.profile?.location?.coordinates) {
+            deliveryCoordinates = {
+              latitude: firstRetailer.profile.location.coordinates[1],
+              longitude: firstRetailer.profile.location.coordinates[0],
+            };
+          }
+          deliveryEstimate = subOrders[0].deliveryEstimate;
+          logger.info(`📍 Master delivery estimate set from first sub-order: ${deliveryEstimate.durationText}`);
+        }
+      }
+
+      // STEP 5: Create master order
       const masterTotalAmount = subOrders.reduce((sum, so) => sum + so.totalAmount, 0);
 
       const order = new Order({
@@ -224,6 +276,8 @@ class OrderService {
           ...deliveryAddress,
           country: deliveryAddress.country || 'India',
         },
+        deliveryCoordinates,
+        deliveryEstimate,
         notes,
         appliedDiscountCode: discountCalc.appliedCode?._id,
         loyaltyTierAtPurchase: await customer.calculateLoyaltyTier(),
@@ -242,17 +296,17 @@ class OrderService {
 
       await order.save();
 
-      // STEP 5: Update customer history
+      // STEP 6: Update customer history
       await customer.updateOne({
         $push: { orderHistory: order._id }
       });
 
-      // STEP 6: Increment discount code usage
+      // STEP 7: Increment discount code usage
       if (discountCalc.appliedCode && discountCalc.discountType === 'CODE') {
         await discountCalc.appliedCode.incrementUsage(customerId);
       }
 
-      // STEP 7: Send notifications to each retailer
+      // STEP 8: Send notifications to each retailer
       const customerName = customer.profile?.name || customer.email;
 
       for (const subOrder of order.subOrders) {
@@ -271,7 +325,7 @@ class OrderService {
         }
       }
 
-      // STEP 8: Log
+      // STEP 9: Log
       logger.info(`✅ Multi-retailer order created: ${order.orderId}`);
       logger.info(`   📦 Sub-orders: ${subOrders.length}`);
       logger.info(`   💰 Pricing breakdown:`);
@@ -446,7 +500,8 @@ class OrderService {
     subOrderId: string,
     newStatus: OrderStatus,
     userId: string,
-    notes?: string
+    notes?: string,
+    expectedShippingDate?: Date
   ) {
     try {
       const order = await Order.findById(orderId);
@@ -475,6 +530,32 @@ class OrderService {
         timestamp: new Date(),
         notes,
       });
+
+      // Update expected shipping date if provided (typically when status moves to PROCESSING)
+      if (expectedShippingDate) {
+        subOrder.expectedShippingDate = expectedShippingDate;
+        logger.info(`📅 Expected shipping date set to: ${expectedShippingDate.toISOString()}`);
+
+        // Populate retailer info for notification
+        await order.populate('subOrders.retailerId', 'businessName profile.name');
+        const retailer: any = subOrder.retailerId;
+        const retailerName = retailer.businessName || retailer.profile?.name || 'Retailer';
+
+        // Send notification to customer about shipping date
+        try {
+          await notificationService.notifyShippingDateSet(
+            order.customerId,
+            order._id.toString(),
+            subOrderId,
+            retailerName,
+            expectedShippingDate,
+            subOrder.items
+          );
+          logger.info(`📧 Shipping date notification sent to customer`);
+        } catch (notifError: any) {
+          logger.error(`❌ Failed to send shipping date notification:`, notifError);
+        }
+      }
 
       // Update master status based on all sub-orders
       order.masterStatus = order.calculateMasterStatus();

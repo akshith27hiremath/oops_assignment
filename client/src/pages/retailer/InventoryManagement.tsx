@@ -439,16 +439,38 @@ const InventoryManagement: React.FC = () => {
                       className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      item.currentStock > item.reorderLevel ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                      item.currentStock > 0 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
-                      'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                    }`}>
-                      {item.currentStock > item.reorderLevel ? 'In Stock' :
-                       item.currentStock > 0 ? 'Low Stock' :
-                       'Out of Stock'}
-                    </span>
+                  <td className="px-3 py-3">
+                    <div>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        item.currentStock > item.reorderLevel ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                        item.currentStock > 0 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
+                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                      }`}>
+                        {item.currentStock > item.reorderLevel ? 'In Stock' :
+                         item.currentStock > 0 ? 'Low Stock' :
+                         'Out of Stock'}
+                      </span>
+                      {item.currentStock === 0 && (
+                        <div className="mt-2">
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Expected back:</label>
+                          <input
+                            type="date"
+                            value={item.expectedAvailabilityDate ? new Date(item.expectedAvailabilityDate).toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : null;
+                              inventoryService.updateExpectedAvailability(item._id, date)
+                                .then(() => {
+                                  toast.success('Expected availability updated');
+                                  loadInventory();
+                                })
+                                .catch(() => toast.error('Failed to update'));
+                            }}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">
                     {item.productDiscount && item.productDiscount.isActive &&
